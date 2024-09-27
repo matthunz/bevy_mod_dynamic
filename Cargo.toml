@@ -1,0 +1,10 @@
+[package]
+name = "bevy_mod_dynamic"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [".", "example"]
+
+[dependencies]
+wasmer = "4.3.7"
