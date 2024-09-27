@@ -1,19 +1,74 @@
-use wasmer::{imports, Instance, Module, Store, Value};
+use bevy::prelude::*;
+use slotmap::{DefaultKey, SlotMap};
+use std::{
+    path::Path,
+    sync::{mpsc, Mutex},
+    thread,
+};
+use wasmer::{imports, Function, Instance, Module, Store, Value};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let wasm_bytes = std::fs::read("target/wasm32-unknown-unknown/debug/example.wasm")?;
-    let mut store = Store::default();
+struct DynamicPlugin {
+    module: Module,
+    systems: Vec<Function>,
+}
 
-    let module = Module::new(&store, wasm_bytes)?;
-    let import_object = imports! {};
+#[derive(Default, Resource)]
+pub struct Runtime {
+    store: Store,
+    modules: SlotMap<DefaultKey, DynamicPlugin>,
+}
 
-    let instance = Instance::new(&mut store, &module, &import_object)?;
-    let add_function = instance.exports.get_function("add")?;
+impl Runtime {
+    pub fn load(&mut self, path: impl AsRef<Path>, systems: &[&str]) {
+        let wasm_bytes = std::fs::read(path).unwrap();
 
-    let result = add_function.call(&mut store, &[Value::I32(5), Value::I32(7)])?;
-    if let Value::I32(sum) = result[0] {
-        println!("Result of add: {}", sum);
+        let module = Module::new(&self.store, wasm_bytes).unwrap();
+        let import_object = imports! {};
+
+        let instance = Instance::new(&mut self.store, &module, &import_object).unwrap();
+
+        let fns = systems
+            .iter()
+            .map(|name| instance.exports.get_function(name).unwrap().clone())
+            .collect();
+
+        self.modules.insert(DynamicPlugin {
+            module,
+            systems: fns,
+        });
     }
 
-    Ok(())
+    pub fn tick(&mut self) {
+        for (_, plugin) in self.modules.iter_mut() {
+            for system in &plugin.systems {
+                dbg!(system
+                    .call(&mut self.store, &[Value::I32(5), Value::I32(7)])
+                    .unwrap());
+            }
+        }
+    }
+}
+
+pub struct RuntimePlugin;
+
+impl Plugin for RuntimePlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<Runtime>()
+            .add_systems(Update, tick_runtime);
+    }
+}
+
+fn tick_runtime(mut rt: ResMut<Runtime>) {
+    rt.tick();
+}
+
+fn main() {
+    App::new()
+        .add_plugins(RuntimePlugin)
+        .add_systems(Startup, setup)
+        .run();
+}
+
+fn setup(mut rt: ResMut<Runtime>) {
+    rt.load("target/wasm32-unknown-unknown/debug/example.wasm", &["add"]);
 }

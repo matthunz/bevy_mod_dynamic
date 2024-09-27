@@ -7,4 +7,6 @@ edition = "2021"
 members = [".", "example"]
 
 [dependencies]
+bevy = "0.14.2"
+slotmap = "1.0.7"
 wasmer = "4.3.7"
