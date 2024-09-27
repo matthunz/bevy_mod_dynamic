@@ -1,15 +1,15 @@
+use bevy_mod_dynamic_client::{App, Runtime};
+
 #[no_mangle]
-pub fn add(left: i32, right: i32) -> i32 {
-    left + right
+pub fn main(){
+    App::new()
+        .add_system(|| {
+            todo!()
+        })
+        .spawn();
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[no_mangle]
+pub fn run() {
+    Runtime::current().tick();
 }

@@ -1,15 +1,11 @@
 use bevy::prelude::*;
 use slotmap::{DefaultKey, SlotMap};
-use std::{
-    path::Path,
-    sync::{mpsc, Mutex},
-    thread,
-};
-use wasmer::{imports, Function, Instance, Module, Store, Value};
+use std::path::Path;
+use wasmer::{imports, Function, Instance, Module, Store};
 
 struct DynamicPlugin {
     module: Module,
-    systems: Vec<Function>,
+    update: Function,
 }
 
 #[derive(Default, Resource)]
@@ -19,7 +15,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn load(&mut self, path: impl AsRef<Path>, systems: &[&str]) {
+    pub fn load(&mut self, path: impl AsRef<Path>) {
         let wasm_bytes = std::fs::read(path).unwrap();
 
         let module = Module::new(&self.store, wasm_bytes).unwrap();
@@ -27,24 +23,21 @@ impl Runtime {
 
         let instance = Instance::new(&mut self.store, &module, &import_object).unwrap();
 
-        let fns = systems
-            .iter()
-            .map(|name| instance.exports.get_function(name).unwrap().clone())
-            .collect();
+        instance
+            .exports
+            .get_function("main")
+            .unwrap()
+            .call(&mut self.store, &[])
+            .unwrap();
 
-        self.modules.insert(DynamicPlugin {
-            module,
-            systems: fns,
-        });
+        let update = instance.exports.get_function("run").unwrap().clone();
+
+        self.modules.insert(DynamicPlugin { module, update });
     }
 
     pub fn tick(&mut self) {
         for (_, plugin) in self.modules.iter_mut() {
-            for system in &plugin.systems {
-                dbg!(system
-                    .call(&mut self.store, &[Value::I32(5), Value::I32(7)])
-                    .unwrap());
-            }
+            dbg!(plugin.update.call(&mut self.store, &[]).unwrap());
         }
     }
 }
@@ -70,5 +63,5 @@ fn main() {
 }
 
 fn setup(mut rt: ResMut<Runtime>) {
-    rt.load("target/wasm32-unknown-unknown/debug/example.wasm", &["add"]);
+    rt.load("target/wasm32-unknown-unknown/debug/example.wasm");
 }

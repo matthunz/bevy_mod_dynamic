@@ -7,3 +7,4 @@ edition = "2021"
 crate-type = ["cdylib"] 
 
 [dependencies]
+bevy_mod_dynamic_client = { path = "../bevy_mod_dynamic_client" }

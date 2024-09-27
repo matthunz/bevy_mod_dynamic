@@ -803,6 +803,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_mod_dynamic_client"
+version = "0.1.0"
+dependencies = [
+ "slotmap",
+]
+
+[[package]]
 name = "bevy_pbr"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2040,6 +2047,9 @@ dependencies = [
 [[package]]
 name = "example"
 version = "0.1.0"
+dependencies = [
+ "bevy_mod_dynamic_client",
+]
 
 [[package]]
 name = "fallible-iterator"
