@@ -1,12 +1,8 @@
 use bevy_mod_dynamic_client::{App, Runtime};
 
 #[no_mangle]
-pub fn main(){
-    App::new()
-        .add_system(|| {
-            todo!()
-        })
-        .spawn();
+pub fn main() {
+    App::new().add_system(|| {}).spawn();
 }
 
 #[no_mangle]

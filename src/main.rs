@@ -1,6 +1,8 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
+use serde::Serialize;
+use serde_json::Value;
 use slotmap::{DefaultKey, SlotMap};
-use std::path::Path;
+use std::{any::TypeId, borrow::Cow, path::Path};
 use wasmer::{imports, Function, Instance, Module, Store};
 
 struct DynamicPlugin {
@@ -12,6 +14,7 @@ struct DynamicPlugin {
 pub struct Runtime {
     store: Store,
     modules: SlotMap<DefaultKey, DynamicPlugin>,
+    json: HashMap<TypeId, Value>,
 }
 
 impl Runtime {
@@ -52,16 +55,34 @@ impl Plugin for RuntimePlugin {
 }
 
 fn tick_runtime(mut rt: ResMut<Runtime>) {
+    dbg!(&rt.json);
     rt.tick();
 }
+
+fn update_json<T: Component + Serialize>(component_query: Query<Ref<T>>, mut rt: ResMut<Runtime>) {
+    for component in &component_query {
+        if component.is_changed() {
+            rt.json.insert(
+                TypeId::of::<T>(),
+                serde_json::to_value(&*component).unwrap(),
+            );
+        }
+    }
+}
+
+#[derive(Component, Serialize)]
+struct Health(i32);
 
 fn main() {
     App::new()
         .add_plugins(RuntimePlugin)
         .add_systems(Startup, setup)
+        .add_systems(Update, update_json::<Health>)
         .run();
 }
 
-fn setup(mut rt: ResMut<Runtime>) {
+fn setup(mut commands: Commands, mut rt: ResMut<Runtime>) {
     rt.load("target/wasm32-unknown-unknown/debug/example.wasm");
+
+    commands.spawn(Health(100));
 }
